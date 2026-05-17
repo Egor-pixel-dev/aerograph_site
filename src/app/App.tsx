@@ -18,6 +18,7 @@ export default function App() {
     resetEmail: ''
   });
 
+  const SERVER_URL = 'https://aerograph-base.onrender.com/';
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showLoginPassword, setShowLoginPassword] = useState(false);
@@ -66,7 +67,7 @@ export default function App() {
     '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#ef4444', '#6366f1'
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (currentStep === 0) {
       // Validate all fields before proceeding
@@ -84,8 +85,27 @@ export default function App() {
 
       setCurrentStep(1);
     } else {
-      console.log('Form submitted:', formData);
-      setCurrentPage('main');
+          // ТУТ ОТПРАВЛЯЕМ НА СЕРВЕР (РЕГИСТРАЦИЯ)
+    try {
+      const res = await fetch(`${SERVER_URL}/api/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: formData.username,
+          email: formData.email,
+          password: formData.password
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        console.log('Зарегистрирован:', data);
+        setCurrentPage('main');
+      } else {
+        alert(data.error);
+      }
+    } catch (err) {
+      console.error(err);
+    }
     }
   };
 
@@ -1004,7 +1024,28 @@ export default function App() {
                 </div>
 
                 {/* Form */}
-                <form onSubmit={handleSubmit} className="p-8 space-y-5">
+                <form onSubmit={async (e) => { 
+  e.preventDefault(); 
+  try {
+    const res = await fetch(`${SERVER_URL}/api/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: formData.loginEmail,
+        password: formData.loginPassword
+      })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      console.log('Вошел:', data);
+      setCurrentPage('main');
+    } else {
+      alert(data.error);
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}} className="p-8 space-y-5">
             {inputFields.map((field, index) => (
               <motion.div
                 key={field.name}
