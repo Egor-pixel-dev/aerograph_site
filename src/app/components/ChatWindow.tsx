@@ -1,6 +1,9 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { Phone, Video, MoreVertical, Smile, Image as ImageIcon, Paperclip, Send, X, Plus } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { io, Socket } from 'socket.io-client';
+
+const SERVER_URL = 'https://aerograph-base.onrender.com/';
 
 interface Message {
   id: number;
@@ -26,13 +29,47 @@ export function ChatWindow({ chatName, chatAvatar, chatStatus, onBack, isMobile 
   const [gifsOpen, setGifsOpen] = useState(false);
   const [createStickerOpen, setCreateStickerOpen] = useState(false);
   const [stickerImage, setStickerImage] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [socket, setSocket] = useState<Socket | null>(null);
 
-  const [messages] = useState<Message[]>([
-    { id: 1, text: 'Привет!', time: '14:20', isMine: false },
-    { id: 2, text: 'Как дела?', time: '14:20', isMine: false },
-    { id: 3, text: 'Отлично, спасибо!', time: '14:21', isMine: true },
-    { id: 4, text: 'А у тебя?', time: '14:21', isMine: true },
-  ]);
+    // ПОДКЛЮЧЕНИЕ К WEBSOCKET ПРИ ОТКРЫТИИ ЧАТА
+  useEffect(() => {
+    const newSocket = io(SERVER_URL);
+    setSocket(newSocket);
+
+    // Допустим, chatId генерируется из имени (для теста)
+    const chatId = `chat_${chatName}`;
+    newSocket.emit('join_chat', chatId);
+
+    newSocket.on('receive_message', (msg) => {
+      setMessages((prev) => [...prev, {
+        id: msg.id,
+        text: msg.text,
+        time: msg.time,
+        isMine: msg.senderId === 'my_id', // в будущем берешь ID из профиля
+      }]);
+    });
+
+    return () => {
+      newSocket.disconnect();
+    };
+  }, [chatName]);
+
+  // ФУНКЦИЯ ОТПРАВКИ СООБЩЕНИЯ
+  const handleSendMessage = () => {
+    if (!message.trim() || !socket) return;
+
+    const msgData = {
+      chatId: `chat_${chatName}`,
+      text: message,
+      senderId: 'my_id', // твой текущий ID
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+
+    socket.emit('send_message', msgData);
+    setMessage(''); // Очищаем поле ввода
+  };
+
 
   const stickers = ['😀', '😂', '❤️', '👍', '🔥', '🎉', '😍', '🤔', '👏', '🙌', '💯', '✨'];
   const gifs = Array(12).fill('https://media.giphy.com/media/3o7btNa0RUYa5E7iiQ/giphy.gif');
@@ -374,10 +411,12 @@ export function ChatWindow({ chatName, chatAvatar, chatStatus, onBack, isMobile 
             type="text"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} // Отправка по Enter
             placeholder="Написать сообщение..."
             className="flex-1 px-4 py-2 bg-gray-100 rounded-full focus:outline-none focus:ring-2 focus:ring-cyan-500"
           />
           <motion.button
+            onClick={handleSendMessage} 
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             className="p-2 bg-cyan-500 text-white rounded-full hover:bg-cyan-600 transition-colors"
