@@ -18,7 +18,7 @@ export default function App() {
     resetEmail: ''
   });
 
-  const SERVER_URL = 'https://aerograph-base.onrender.com/';
+  const SERVER_URL = 'https://aerograph-base.onrender.com';
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showLoginPassword, setShowLoginPassword] = useState(false);
