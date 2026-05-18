@@ -9,6 +9,7 @@ export default function App() {
   const [usersList, setUsersList] = useState<any[]>([]);     // Все юзеры с сервера 
   const [currentPage, setCurrentPage] = useState<'register' | 'login' | 'forgot' | 'main'>('register');
   const [currentStep, setCurrentStep] = useState(0);
+    const SERVER_URL = 'https://aerograph-base.onrender.com';
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -34,7 +35,6 @@ export default function App() {
     }
   }, [currentPage, currentUser]);
 
-  const SERVER_URL = 'https://aerograph-base.onrender.com';
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showLoginPassword, setShowLoginPassword] = useState(false);
@@ -1043,28 +1043,7 @@ export default function App() {
                 </div>
 
                 {/* Form */}
-                <form onSubmit={async (e) => { 
-  e.preventDefault(); 
-  try {
-    const res = await fetch(`${SERVER_URL}/api/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: formData.loginEmail,
-        password: formData.loginPassword
-      })
-    });
-    const data = await res.json();
-    if (res.ok) {
-      console.log('Вошел:', data);
-      setCurrentPage('main');
-    } else {
-      alert(data.error);
-    }
-  } catch (err) {
-    console.error(err);
-  }
-}} className="p-8 space-y-5">
+                <form onSubmit={handleSubmit} className="p-8 space-y-5">
             {inputFields.map((field, index) => (
               <motion.div
                 key={field.name}
