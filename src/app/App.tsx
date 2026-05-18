@@ -5,6 +5,8 @@ import { ChatCard } from './components/ChatCard';
 import { ChatWindow } from './components/ChatWindow';
 
 export default function App() {
+  const [currentUser, setCurrentUser] = useState<any>(null); // Текущий юзер
+  const [usersList, setUsersList] = useState<any[]>([]);     // Все юзеры с сервера 
   const [currentPage, setCurrentPage] = useState<'register' | 'login' | 'forgot' | 'main'>('register');
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState({
@@ -17,6 +19,20 @@ export default function App() {
     loginPassword: '',
     resetEmail: ''
   });
+
+  useEffect(() => {
+    if (currentPage === 'main' && currentUser) {
+      // Запрашиваем всех пользователей с сервера
+      fetch(`${SERVER_URL}/api/users`)
+        .then(res => res.json())
+        .then(data => {
+          // Исключаем из списка контактов самих себя
+          const otherUsers = data.filter((u: any) => u.id !== currentUser.id);
+          setUsersList(otherUsers);
+        })
+        .catch(err => console.error('Ошибка загрузки пользователей:', err));
+    }
+  }, [currentPage, currentUser]);
 
   const SERVER_URL = 'https://aerograph-base.onrender.com';
   const [showPassword, setShowPassword] = useState(false);
@@ -417,24 +433,28 @@ export default function App() {
           </div>
 
           {/* Chats list */}
-          <div className="flex-1 overflow-y-auto">
-            {chats
-              .filter(chat => chat.name.toLowerCase().includes(searchQuery.toLowerCase()))
-              .map((chat, index) => (
-                <ChatCard
-                  key={chat.id}
-                  id={chat.id}
-                  name={chat.name}
-                  lastMessage={chat.lastMessage}
-                  time={chat.time}
-                  unread={chat.unread}
-                  avatar={chat.avatar}
-                  isSelected={selectedChat === chat.id}
-                  onClick={() => setSelectedChat(chat.id)}
-                  animationDelay={index * 0.05}
-                />
-              ))}
-          </div>
+{/* Chats list */}
+<div className="flex-1 overflow-y-auto">
+  {usersList
+    .filter(user => user.username.toLowerCase().includes(searchQuery.toLowerCase()))
+    .map((user, index) => (
+      <ChatCard
+        key={user.id}
+        id={user.id}
+        name={user.username}
+        lastMessage="Начать чат" // Пока заглушка
+        time=""
+        unread={0}
+        // Если аватар начинается с data:image (картинка), показываем img, иначе текст (например '👤')
+        avatar={user.avatar.startsWith('data:') 
+          ? <img src={user.avatar} className="w-full h-full rounded-full object-cover" /> 
+          : user.avatar}
+        isSelected={selectedChat === user.id}
+        onClick={() => setSelectedChat(user.id)} // selectedChat теперь хранит ID пользователя
+        animationDelay={index * 0.05}
+      />
+    ))}
+</div>
         </motion.div>
 
         {/* Modal Windows */}
@@ -932,16 +952,15 @@ export default function App() {
 
         {/* Right side - Chat area */}
         <div className={`flex-1 flex flex-col ${isMobile && !selectedChat ? 'hidden' : ''}`}>
-          {selectedChat ? (
-            <ChatWindow
-              chatName={chats.find(c => c.id === selectedChat)?.name || 'Чат'}
-              chatAvatar={chats.find(c => c.id === selectedChat)?.avatar || '👤'}
-              chatStatus="был(а) недавно"
-              onBack={isMobile ? () => setSelectedChat(null) : undefined}
-              isMobile={isMobile}
-              chatBackground={chatBackground}
-            />
-          ) : (
+{selectedChat ? (
+  <ChatWindow
+    targetUser={usersList.find(u => u.id === selectedChat)} // Передаем данные собеседника
+    currentUser={currentUser} // Передаем себя
+    onBack={isMobile ? () => setSelectedChat(null) : undefined}
+    isMobile={isMobile}
+    chatBackground={chatBackground}
+  />
+) : (
             <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-sky-50 via-blue-50 to-cyan-50">
               <div className="text-center text-gray-400">
                 <p className="text-lg">Выберите чат для начала общения</p>
@@ -1235,12 +1254,31 @@ export default function App() {
 
                     <motion.button
                       type="button"
-                      onClick={() => {
-                        if (formData.avatar) {
-                          console.log('Complete registration:', formData);
-                          setCurrentPage('main');
-                        }
-                      }}
+onClick={async () => {
+  if (formData.avatar) {
+    try {
+      const res = await fetch(`${SERVER_URL}/api/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: formData.username,
+          email: formData.email,
+          password: formData.password,
+          avatar: formData.avatar
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setCurrentUser(data.user); // Сохраняем кто вошел
+        setCurrentPage('main');    // Идем в мессенджер
+      } else {
+        alert(data.error);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+}}
                       disabled={!formData.avatar}
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
@@ -1299,7 +1337,28 @@ export default function App() {
                 </div>
 
                 {/* Login Form */}
-                <form onSubmit={(e) => { e.preventDefault(); console.log('Login:', formData.loginEmail); }} className="p-8 space-y-5">
+                <form onSubmit={async (e) => { 
+  e.preventDefault(); 
+  try {
+    const res = await fetch(`${SERVER_URL}/api/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: formData.loginEmail,
+        password: formData.loginPassword
+      })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      setCurrentUser(data.user); // Сохраняем кто вошел
+      setCurrentPage('main');    // Идем в мессенджер
+    } else {
+      alert(data.error);
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}} className="p-8 space-y-5">
                   <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
