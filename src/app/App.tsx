@@ -950,24 +950,25 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        {/* Right side - Chat area */}
-        <div className={`flex-1 flex flex-col ${isMobile && !selectedChat ? 'hidden' : ''}`}>
-{selectedChat ? (
-  <ChatWindow
-    targetUser={usersList.find(u => u.id === selectedChat)} // Передаем данные собеседника
-    currentUser={currentUser} // Передаем себя
-    onBack={isMobile ? () => setSelectedChat(null) : undefined}
-    isMobile={isMobile}
-    chatBackground={chatBackground}
-  />
-) : (
-            <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-sky-50 via-blue-50 to-cyan-50">
-              <div className="text-center text-gray-400">
-                <p className="text-lg">Выберите чат для начала общения</p>
-              </div>
-            </div>
-          )}
-        </div>
+{/* Right side - Chat area */}
+<div className={`flex-1 flex flex-col min-h-0 ${isMobile && !selectedChat ? 'hidden' : ''}`}>
+  {selectedChat ? (
+    <ChatWindow
+      targetUser={usersList.find(u => u.id === selectedChat)}
+      currentUser={currentUser}
+      onBack={isMobile ? () => setSelectedChat(null) : undefined}
+      isMobile={isMobile}
+      chatBackground={chatBackground}
+    />
+  ) : (
+    <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-sky-50 via-blue-50 to-cyan-50 min-h-0">
+      <div className="text-center text-gray-400">
+        <MessageSquare size={64} className="mx-auto mb-4 opacity-50" />
+        <p className="text-xl font-medium">Выберите чат для начала общения</p>
+      </div>
+    </div>
+  )}
+</div>
       </div>
     );
   }
