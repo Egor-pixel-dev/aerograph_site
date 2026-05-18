@@ -6,24 +6,21 @@ import { io, Socket } from 'socket.io-client';
 const SERVER_URL = 'https://aerograph-base.onrender.com';
 
 interface Message {
-  id: number;
+  id: string;
   text: string;
   time: string;
-  isMine: boolean;
-  type?: 'text' | 'sticker' | 'gif';
-  media?: string;
+  senderId: string;
 }
 
 interface ChatWindowProps {
-  chatName: string;
-  chatAvatar: string;
-  chatStatus: string;
+  targetUser: any;
+  currentUser: any;
   onBack?: () => void;
   isMobile?: boolean;
   chatBackground?: string;
 }
 
-export function ChatWindow({ chatName, chatAvatar, chatStatus, onBack, isMobile = false, chatBackground }: ChatWindowProps) {
+export function ChatWindow({ targetUser, currentUser, onBack, isMobile = false, chatBackground }: ChatWindowProps) {
   const [message, setMessage] = useState('');
   const [stickersOpen, setStickersOpen] = useState(false);
   const [gifsOpen, setGifsOpen] = useState(false);
@@ -32,37 +29,40 @@ export function ChatWindow({ chatName, chatAvatar, chatStatus, onBack, isMobile 
   const [messages, setMessages] = useState<Message[]>([]);
   const [socket, setSocket] = useState<Socket | null>(null);
 
+  const chatId = [currentUser.id, targetUser.id].sort().join('_');
+
+
     // ПОДКЛЮЧЕНИЕ К WEBSOCKET ПРИ ОТКРЫТИИ ЧАТА
   useEffect(() => {
+    // 1. Загружаем историю из базы данных
+    fetch(`${SERVER_URL}/api/messages/${chatId}`)
+      .then(res => res.json())
+      .then(data => setMessages(data))
+      .catch(err => console.error(err));
+
+    // 2. Подключаемся к сокетам
     const newSocket = io(SERVER_URL);
     setSocket(newSocket);
 
-    // Допустим, chatId генерируется из имени (для теста)
-    const chatId = `chat_${chatName}`;
     newSocket.emit('join_chat', chatId);
 
     newSocket.on('receive_message', (msg) => {
-      setMessages((prev) => [...prev, {
-        id: msg.id,
-        text: msg.text,
-        time: msg.time,
-        isMine: msg.senderId === 'my_id', // в будущем берешь ID из профиля
-      }]);
+      setMessages((prev) => [...prev, msg]);
     });
 
     return () => {
       newSocket.disconnect();
     };
-  }, [chatName]);
+  }, [chatId]); // Если выбрали другого пользователя, эффект перезапустится
 
   // ФУНКЦИЯ ОТПРАВКИ СООБЩЕНИЯ
   const handleSendMessage = () => {
     if (!message.trim() || !socket) return;
 
     const msgData = {
-      chatId: `chat_${chatName}`,
+      chatId,
       text: message,
-      senderId: 'my_id', // твой текущий ID
+      senderId: currentUser.id,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
@@ -91,6 +91,11 @@ export function ChatWindow({ chatName, chatAvatar, chatStatus, onBack, isMobile 
     input.click();
   };
 
+    // Отрисовка аватарки собеседника
+  const avatarEl = targetUser.avatar.startsWith('data:') 
+    ? <img src={targetUser.avatar} className="w-full h-full rounded-full object-cover" /> 
+    : targetUser.avatar;
+
   return (
     <div className="flex-1 flex flex-col h-full relative">
       {/* Chat Header */}
@@ -106,11 +111,11 @@ export function ChatWindow({ chatName, chatAvatar, chatStatus, onBack, isMobile 
             </motion.button>
           )}
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-400 to-blue-400 flex items-center justify-center text-xl">
-            {chatAvatar}
+            {avatarEl}
           </div>
           <div>
-            <h3 className="font-semibold text-gray-900">{chatName}</h3>
-            <p className="text-xs text-gray-500">{chatStatus}</p>
+            <h3 className="font-semibold text-gray-900">{targetUser.username}</h3>
+            <p className="text-xs text-gray-500">{targetUser.email}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -148,27 +153,31 @@ export function ChatWindow({ chatName, chatAvatar, chatStatus, onBack, isMobile 
           backgroundPosition: 'center'
         }}
       >
-        {messages.map((msg) => (
-          <motion.div
-            key={msg.id}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`flex ${msg.isMine ? 'justify-end' : 'justify-start'}`}
-          >
-            <div
-              className={`max-w-xs px-4 py-2 rounded-2xl ${
-                msg.isMine
-                  ? 'bg-cyan-500 text-white rounded-br-sm'
-                  : 'bg-white text-gray-900 rounded-bl-sm shadow-sm'
-              }`}
+        
+{messages.map((msg: Message) => {
+          const isMine = msg.senderId === currentUser?.id; // Вычисляем, мое ли это сообщение
+          return (
+            <motion.div
+              key={msg.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}
             >
-              <p className="text-sm">{msg.text}</p>
-              <p className={`text-xs mt-1 ${msg.isMine ? 'text-cyan-100' : 'text-gray-500'}`}>
-                {msg.time}
-              </p>
-            </div>
-          </motion.div>
-        ))}
+              <div
+                className={`max-w-xs px-4 py-2 rounded-2xl ${
+                  isMine
+                    ? 'bg-cyan-500 text-white rounded-br-sm'
+                    : 'bg-white text-gray-900 rounded-bl-sm shadow-sm'
+                }`}
+              >
+                <p className="text-sm">{msg.text}</p>
+                <p className={`text-xs mt-1 ${isMine ? 'text-cyan-100' : 'text-gray-500'}`}>
+                  {msg.time}
+                </p>
+              </div>
+            </motion.div>
+          );
+        })}
       </div>
 
       {/* Sticker Panel - Desktop Left */}
