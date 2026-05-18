@@ -1220,7 +1220,30 @@ export default function App() {
                   <div className="w-full flex items-center justify-between mt-12">
                     <motion.button
                       type="button"
-                      onClick={() => setCurrentPage('main')}
+                      onClick={async () => {
+                        try {
+                          const res = await fetch(`${SERVER_URL}/api/register`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              username: formData.username,
+                              email: formData.email,
+                              password: formData.password,
+                              avatar: '👤' // Ставим стандартную аватарку, так как юзер пропустил выбор
+                            })
+                          });
+                          const data = await res.json();
+                          if (res.ok) {
+                            setCurrentUser(data.user); 
+                            setCurrentPage('main');    
+                          } else {
+                            alert(data.error);
+                            setCurrentStep(0); // Если ошибка (например, email занят), возвращаем на первый шаг
+                          }
+                        } catch (err) {
+                          console.error(err);
+                        }
+                      }}
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.6, duration: 0.5 }}
