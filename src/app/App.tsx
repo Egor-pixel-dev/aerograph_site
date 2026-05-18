@@ -950,25 +950,24 @@ export default function App() {
           )}
         </AnimatePresence>
 
-{/* Right side - Chat area */}
-<div className={`flex-1 flex flex-col min-h-0 ${isMobile && !selectedChat ? 'hidden' : ''}`}>
-  {selectedChat ? (
-    <ChatWindow
-      targetUser={usersList.find(u => u.id === selectedChat)}
-      currentUser={currentUser}
-      onBack={isMobile ? () => setSelectedChat(null) : undefined}
-      isMobile={isMobile}
-      chatBackground={chatBackground}
-    />
-  ) : (
-    <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-sky-50 via-blue-50 to-cyan-50 min-h-0">
-      <div className="text-center text-gray-400">
-        <MessageSquare size={64} className="mx-auto mb-4 opacity-50" />
-        <p className="text-xl font-medium">Выберите чат для начала общения</p>
-      </div>
-    </div>
-  )}
-</div>
+        {/* Right side - Chat area */}
+        <div className={`flex-1 flex flex-col ${isMobile && !selectedChat ? 'hidden' : ''}`}>
+{selectedChat ? (
+  <ChatWindow
+    targetUser={usersList.find(u => u.id === selectedChat)} // Передаем данные собеседника
+    currentUser={currentUser} // Передаем себя
+    onBack={isMobile ? () => setSelectedChat(null) : undefined}
+    isMobile={isMobile}
+    chatBackground={chatBackground}
+  />
+) : (
+            <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-sky-50 via-blue-50 to-cyan-50">
+              <div className="text-center text-gray-400">
+                <p className="text-lg">Выберите чат для начала общения</p>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -1221,30 +1220,7 @@ export default function App() {
                   <div className="w-full flex items-center justify-between mt-12">
                     <motion.button
                       type="button"
-                      onClick={async () => {
-                        try {
-                          const res = await fetch(`${SERVER_URL}/api/register`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                              username: formData.username,
-                              email: formData.email,
-                              password: formData.password,
-                              avatar: '👤' // Ставим стандартную аватарку, так как юзер пропустил выбор
-                            })
-                          });
-                          const data = await res.json();
-                          if (res.ok) {
-                            setCurrentUser(data.user); 
-                            setCurrentPage('main');    
-                          } else {
-                            alert(data.error);
-                            setCurrentStep(0); // Если ошибка (например, email занят), возвращаем на первый шаг
-                          }
-                        } catch (err) {
-                          console.error(err);
-                        }
-                      }}
+                      onClick={() => setCurrentPage('main')}
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.6, duration: 0.5 }}
