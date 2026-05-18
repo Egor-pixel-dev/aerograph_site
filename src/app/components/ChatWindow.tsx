@@ -3,7 +3,7 @@ import { Phone, Video, MoreVertical, Smile, Image as ImageIcon, Paperclip, Send,
 import { useState, useEffect } from 'react';
 import { io, Socket } from 'socket.io-client';
 
-const SERVER_URL = 'https://aerograph-base.onrender.com/';
+const SERVER_URL = 'https://aerograph-base.onrender.com';
 
 interface Message {
   id: number;
