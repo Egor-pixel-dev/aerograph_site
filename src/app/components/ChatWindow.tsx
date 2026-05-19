@@ -18,9 +18,10 @@ interface ChatWindowProps {
   onBack?: () => void;
   isMobile?: boolean;
   chatBackground?: string;
+  isOnline: boolean; // <--- ДОБАВЬ ЭТО
 }
 
-export function ChatWindow({ targetUser, currentUser, onBack, isMobile = false, chatBackground }: ChatWindowProps) {
+export function ChatWindow({ targetUser, currentUser, onBack, isMobile = false, chatBackground, isOnline }: ChatWindowProps) {
   const [message, setMessage] = useState('');
   const [stickersOpen, setStickersOpen] = useState(false);
   const [gifsOpen, setGifsOpen] = useState(false);
@@ -34,7 +35,9 @@ export function ChatWindow({ targetUser, currentUser, onBack, isMobile = false, 
     ? [currentUser.id, targetUser.id].sort().join('_') 
     : 'default_chat';
 
-    
+  <p className={`text-xs font-medium ${isOnline ? 'text-green-500' : 'text-gray-400'}`}>
+    {isOnline ? 'В сети' : 'Был(а) недавно'}
+  </p>
     
   // ЗАГРУЗКА ИСТОРИИ И СОКЕТЫ
   useEffect(() => {
@@ -45,7 +48,12 @@ export function ChatWindow({ targetUser, currentUser, onBack, isMobile = false, 
       .then(data => setMessages(data))
       .catch(err => console.error(err));
 
-    const newSocket = io(SERVER_URL);
+    const newSocket = io(SERVER_URL, {
+  transports: ['websocket'], // Принудительно используем только WebSocket
+  reconnection: true,        // Авто-переподключение
+  reconnectionAttempts: 5,   // Количество попыток
+  reconnectionDelay: 1000,
+});
     setSocket(newSocket);
 
     newSocket.emit('join_chat', chatId);
@@ -126,7 +134,9 @@ export function ChatWindow({ targetUser, currentUser, onBack, isMobile = false, 
           <div>
             <h3 className="font-semibold text-gray-900">{targetUser.username}</h3>
             {/* MVP Статус - Пока просто хардкод "В сети" */}
-            <p className="text-xs text-green-500 font-medium">В сети</p>
+              <p className={`text-xs font-medium ${isOnline ? 'text-green-500' : 'text-gray-400'}`}>
+    {isOnline ? 'В сети' : 'Был(а) недавно'}
+  </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
