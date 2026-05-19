@@ -11,6 +11,7 @@ export default function App() {
   const [onlineUsers, setOnlineUsers] = useState<Record<string, boolean>>({});
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [usersList, setUsersList] = useState<any[]>([]);
+   const[chatIndices, setChatIndices] = useState<Record<string, any>>({});
   const [currentPage, setCurrentPage] = useState<'register' | 'login' | 'forgot' | 'main'>('register');
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState({
@@ -24,6 +25,14 @@ export default function App() {
     resetEmail: ''
   });
 
+  useEffect(() => {
+  if (currentPage === 'main' && currentUser) {
+    fetch(`${SERVER_URL}/api/chats-index`)
+      .then(res => res.json())
+      .then(data => setChatIndices(data));
+  }
+}, [currentPage, currentUser]);
+
   // СЛУШАЕМ СТАТУСЫ ОНЛАЙН
   useEffect(() => {
     if (currentPage === 'main' && currentUser) {
@@ -33,6 +42,7 @@ export default function App() {
   reconnectionAttempts: 5,   // Количество попыток
   reconnectionDelay: 1000,
 });
+
       newSocket.emit('user_connected', currentUser.id);
 
       newSocket.on('status_change', (data: { userId: string, status: string }) => {
@@ -41,6 +51,10 @@ export default function App() {
           [data.userId]: data.status === 'online'
         }));
       });
+
+      newSocket.on('chat_updated', (data) => {
+  setChatIndices(prev => ({ ...prev, [data.chatId]: data }));
+});
 
       return () => { newSocket.disconnect(); };
     }
@@ -348,26 +362,33 @@ export default function App() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto">
+<         div className="flex-1 overflow-y-auto">
             {usersList
               .filter(user => user.username.toLowerCase().includes(searchQuery.toLowerCase()))
-              .map((user, index) => (
-                <ChatCard
-                  key={user.id}
-                  id={user.id}
-                  name={user.username}
-                  lastMessage="Начать чат"
-                  time=""
-                  unread={0}
-                  isOnline={onlineUsers[user.id] || false}
-                  avatar={user.avatar.startsWith('data:') 
-                    ? <img src={user.avatar} className="w-full h-full rounded-full object-cover" alt={user.username} /> 
-                    : user.avatar}
-                  isSelected={selectedChat === user.id}
-                  onClick={() => setSelectedChat(user.id)}
-                  animationDelay={index * 0.05}
-                />
-              ))}
+              .map((user, index) => {
+                // ВАЖНО: Мы открыли фигурные скобки { }, теперь мы можем писать JS-логику внутри
+                const chatId = [currentUser.id, user.id].sort().join('_');
+                const chatData = chatIndices[chatId] || { lastMessage: 'Начать чат', lastTime: '', unreadCount: {} };
+                const unreadCount = chatData.unreadCount[currentUser.id] || 0;
+
+                return (
+                  <ChatCard
+                    key={user.id}
+                    id={user.id}
+                    name={user.username}
+                    lastMessage={chatData.lastMessage}
+                    time={chatData.lastTime || ''}
+                    unread={unreadCount}
+                    isOnline={onlineUsers[user.id] || false}
+                    avatar={user.avatar.startsWith('data:') 
+                      ? <img src={user.avatar} className="w-full h-full rounded-full object-cover" alt={user.username} /> 
+                      : user.avatar}
+                    isSelected={selectedChat === user.id}
+                    onClick={() => setSelectedChat(user.id)}
+                    animationDelay={index * 0.05}
+                  />
+                );
+              })}
           </div>
         </div>
 
