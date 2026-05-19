@@ -67,6 +67,11 @@ useEffect(() => {
   setChatIndices(prev => ({ ...prev, [data.chatId]: data }));
 });
 
+            // ДОБАВЬ ОБРАБОТЧИК ДЛЯ СЧЕТЧИКА
+      newSocket.on('chat_updated', (data) => {
+        setChatIndices(prev => ({ ...prev, [data.chatId]: data }));
+      });
+
       return () => { newSocket.disconnect(); };
     }
   }, [currentPage, currentUser]);
