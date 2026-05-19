@@ -14,7 +14,7 @@ interface Message {
 
 interface ChatWindowProps {
   targetUser: any;
-  currentUser: any;
+  currentUser: any; 
   onBack?: () => void;
   isMobile?: boolean;
   chatBackground?: string;
@@ -34,6 +34,8 @@ export function ChatWindow({ targetUser, currentUser, onBack, isMobile = false, 
     ? [currentUser.id, targetUser.id].sort().join('_') 
     : 'default_chat';
 
+    
+    
   // ЗАГРУЗКА ИСТОРИИ И СОКЕТЫ
   useEffect(() => {
     if (!currentUser || !targetUser) return;
@@ -99,6 +101,8 @@ export function ChatWindow({ targetUser, currentUser, onBack, isMobile = false, 
     };
     input.click();
   };
+
+  
 
   const avatarEl = targetUser?.avatar?.startsWith('data:') 
     ? <img src={targetUser.avatar} className="w-full h-full rounded-full object-cover" alt="avatar" /> 
@@ -173,6 +177,7 @@ export function ChatWindow({ targetUser, currentUser, onBack, isMobile = false, 
           );
         })}
       </div>
+
 
       {/* Sticker Panel - Desktop Left */}
       {!isMobile && (
