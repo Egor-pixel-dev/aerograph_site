@@ -6,10 +6,10 @@ import { ChatWindow } from './components/ChatWindow';
 import { io } from 'socket.io-client';
 
 const SERVER_URL = 'https://aerograph-base.onrender.com';
-const [onlineUsers, setOnlineUsers] = useState<Record<string, boolean>>({});
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [onlineUsers, setOnlineUsers] = useState<Record<string, boolean>>({});
   const [usersList, setUsersList] = useState<any[]>([]);
   const [currentPage, setCurrentPage] = useState<'register' | 'login' | 'forgot' | 'main'>('register');
   const [currentStep, setCurrentStep] = useState(0);
