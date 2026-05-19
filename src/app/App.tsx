@@ -8,8 +8,8 @@ import { io } from 'socket.io-client';
 const SERVER_URL = 'https://aerograph-base.onrender.com';
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState<any>(null);
   const [onlineUsers, setOnlineUsers] = useState<Record<string, boolean>>({});
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [usersList, setUsersList] = useState<any[]>([]);
   const [currentPage, setCurrentPage] = useState<'register' | 'login' | 'forgot' | 'main'>('register');
   const [currentStep, setCurrentStep] = useState(0);
@@ -27,7 +27,12 @@ export default function App() {
   // СЛУШАЕМ СТАТУСЫ ОНЛАЙН
   useEffect(() => {
     if (currentPage === 'main' && currentUser) {
-      const newSocket = io(SERVER_URL);
+      const newSocket = io(SERVER_URL, {
+  transports: ['websocket'], // Принудительно используем только WebSocket
+  reconnection: true,        // Авто-переподключение
+  reconnectionAttempts: 5,   // Количество попыток
+  reconnectionDelay: 1000,
+});
       newSocket.emit('user_connected', currentUser.id);
 
       newSocket.on('status_change', (data: { userId: string, status: string }) => {
@@ -545,6 +550,7 @@ export default function App() {
             <ChatWindow
               targetUser={usersList.find(u => u.id === selectedChat)}
               currentUser={currentUser}
+              isOnline={onlineUsers[selectedChat] || false} 
               onBack={isMobile ? () => setSelectedChat(null) : undefined}
               isMobile={isMobile}
               chatBackground={chatBackground}
