@@ -3,8 +3,10 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Eye, EyeOff, User, Mail, Lock, CheckCircle2, RotateCcw, Plus, Camera, ArrowRight, Menu, Search, Settings, Palette, Clock, Shield, Bell, Moon, Sun, X, UserCircle, Users, Megaphone, Phone, Bookmark, ChevronLeft, MessageSquare, Zap, Globe, Volume2, Image } from 'lucide-react';
 import { ChatCard } from './components/ChatCard';
 import { ChatWindow } from './components/ChatWindow';
+import { io } from 'socket.io-client';
 
 const SERVER_URL = 'https://aerograph-base.onrender.com';
+const [onlineUsers, setOnlineUsers] = useState<Record<string, boolean>>({});
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -21,6 +23,23 @@ export default function App() {
     loginPassword: '',
     resetEmail: ''
   });
+
+  // СЛУШАЕМ СТАТУСЫ ОНЛАЙН
+  useEffect(() => {
+    if (currentPage === 'main' && currentUser) {
+      const newSocket = io(SERVER_URL);
+      newSocket.emit('user_connected', currentUser.id);
+
+      newSocket.on('status_change', (data: { userId: string, status: string }) => {
+        setOnlineUsers(prev => ({
+          ...prev,
+          [data.userId]: data.status === 'online'
+        }));
+      });
+
+      return () => { newSocket.disconnect(); };
+    }
+  }, [currentPage, currentUser]);
 
   // ЗАПРОС УВЕДОМЛЕНИЙ И АВТО-ПИНГ СЕРВЕРА
   useEffect(() => {
@@ -335,6 +354,7 @@ export default function App() {
                   lastMessage="Начать чат"
                   time=""
                   unread={0}
+                  isOnline={onlineUsers[user.id] || false}
                   avatar={user.avatar.startsWith('data:') 
                     ? <img src={user.avatar} className="w-full h-full rounded-full object-cover" alt={user.username} /> 
                     : user.avatar}
