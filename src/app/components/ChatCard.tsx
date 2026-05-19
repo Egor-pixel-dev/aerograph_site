@@ -10,6 +10,7 @@ interface ChatCardProps {
   isSelected: boolean;
   onClick: () => void;
   animationDelay?: number;
+  isOnline: boolean;
 }
 
 export function ChatCard({
@@ -20,7 +21,8 @@ export function ChatCard({
   avatar,
   isSelected,
   onClick,
-  animationDelay = 0
+  animationDelay = 0,
+  isOnline
 }: ChatCardProps) {
   return (
     <motion.div
@@ -32,9 +34,14 @@ export function ChatCard({
         isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'
       }`}
     >
+      
       <div className="flex items-center gap-3">
         <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-cyan-400 flex items-center justify-center text-2xl flex-shrink-0">
           {avatar}
+        {/* Зеленая точка */}
+        {isOnline && (
+          <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full" />
+        )}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between mb-1">
