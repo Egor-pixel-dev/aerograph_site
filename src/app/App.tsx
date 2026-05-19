@@ -14,6 +14,7 @@ export default function App() {
    const[chatIndices, setChatIndices] = useState<Record<string, any>>({});
   const [currentPage, setCurrentPage] = useState<'register' | 'login' | 'forgot' | 'main'>('register');
   const [currentStep, setCurrentStep] = useState(0);
+    const [socket, setSocket] = useState<any>(null);
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -33,6 +34,16 @@ export default function App() {
   }
 }, [currentPage, currentUser]);
 
+useEffect(() => {
+  if (!socket) return;
+  
+  const interval = setInterval(() => {
+    socket.emit('ping'); // "пинаем" сервер, чтобы соединение оставалось живым
+  }, 20000); // каждые 20 секунд
+  
+  return () => clearInterval(interval);
+}, [socket]);
+
   // СЛУШАЕМ СТАТУСЫ ОНЛАЙН
   useEffect(() => {
     if (currentPage === 'main' && currentUser) {
@@ -42,7 +53,7 @@ export default function App() {
   reconnectionAttempts: 5,   // Количество попыток
   reconnectionDelay: 1000,
 });
-
+      
       newSocket.emit('user_connected', currentUser.id);
 
       newSocket.on('status_change', (data: { userId: string, status: string }) => {
