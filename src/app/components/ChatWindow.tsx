@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { Phone, Video, MoreVertical, Smile, Image as ImageIcon, Paperclip, Send, X, Plus } from 'lucide-react';
+import { Phone, Video, MoreVertical, Smile, Image as ImageIcon, Paperclip, Send, X, Plus, ChevronLeft } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { io, Socket } from 'socket.io-client';
 
@@ -26,38 +26,48 @@ export function ChatWindow({ targetUser, currentUser, onBack, isMobile = false, 
   const [gifsOpen, setGifsOpen] = useState(false);
   const [createStickerOpen, setCreateStickerOpen] = useState(false);
   const [stickerImage, setStickerImage] = useState<string | null>(null);
+  
   const [messages, setMessages] = useState<Message[]>([]);
   const [socket, setSocket] = useState<Socket | null>(null);
 
-  const chatId = [currentUser.id, targetUser.id].sort().join('_');
+  const chatId = currentUser && targetUser 
+    ? [currentUser.id, targetUser.id].sort().join('_') 
+    : 'default_chat';
 
-
-    // ПОДКЛЮЧЕНИЕ К WEBSOCKET ПРИ ОТКРЫТИИ ЧАТА
+  // ЗАГРУЗКА ИСТОРИИ И СОКЕТЫ
   useEffect(() => {
-    // 1. Загружаем историю из базы данных
+    if (!currentUser || !targetUser) return;
+
     fetch(`${SERVER_URL}/api/messages/${chatId}`)
       .then(res => res.json())
       .then(data => setMessages(data))
       .catch(err => console.error(err));
 
-    // 2. Подключаемся к сокетам
     const newSocket = io(SERVER_URL);
     setSocket(newSocket);
 
     newSocket.emit('join_chat', chatId);
 
-    newSocket.on('receive_message', (msg) => {
-      setMessages((prev) => [...prev, msg]);
+    newSocket.on('receive_message', (msg: Message) => {
+      setMessages((prev: Message[]) => [...prev, msg]);
+      
+      // ВОТ ТУТ МЫ ПОКАЗЫВАЕМ БРАУЗЕРНОЕ УВЕДОМЛЕНИЕ, если пришло новое сообщение не от нас
+      if (msg.senderId !== currentUser.id && "Notification" in window && Notification.permission === "granted") {
+        new Notification(targetUser.username, {
+          body: msg.text,
+          icon: targetUser.avatar.startsWith('data:') ? undefined : undefined // Можно добавить иконку
+        });
+      }
     });
 
     return () => {
       newSocket.disconnect();
     };
-  }, [chatId]); // Если выбрали другого пользователя, эффект перезапустится
+  }, [chatId, currentUser, targetUser]);
 
-  // ФУНКЦИЯ ОТПРАВКИ СООБЩЕНИЯ
+  // ОТПРАВКА СООБЩЕНИЯ
   const handleSendMessage = () => {
-    if (!message.trim() || !socket) return;
+    if (!message.trim() || !socket || !currentUser) return;
 
     const msgData = {
       chatId,
@@ -67,9 +77,8 @@ export function ChatWindow({ targetUser, currentUser, onBack, isMobile = false, 
     };
 
     socket.emit('send_message', msgData);
-    setMessage(''); // Очищаем поле ввода
+    setMessage('');
   };
-
 
   const stickers = ['😀', '😂', '❤️', '👍', '🔥', '🎉', '😍', '🤔', '👏', '🙌', '💯', '✨'];
   const gifs = Array(12).fill('https://media.giphy.com/media/3o7btNa0RUYa5E7iiQ/giphy.gif');
@@ -91,53 +100,39 @@ export function ChatWindow({ targetUser, currentUser, onBack, isMobile = false, 
     input.click();
   };
 
-    // Отрисовка аватарки собеседника
-  const avatarEl = targetUser.avatar.startsWith('data:') 
-    ? <img src={targetUser.avatar} className="w-full h-full rounded-full object-cover" /> 
-    : targetUser.avatar;
+  const avatarEl = targetUser?.avatar?.startsWith('data:') 
+    ? <img src={targetUser.avatar} className="w-full h-full rounded-full object-cover" alt="avatar" /> 
+    : targetUser?.avatar || '👤';
+
+  if (!targetUser) return null;
 
   return (
     <div className="flex-1 flex flex-col h-full relative">
       {/* Chat Header */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shadow-sm">
+      <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shadow-sm shrink-0">
         <div className="flex items-center gap-3">
           {isMobile && onBack && (
-            <motion.button
-              whileTap={{ scale: 0.9 }}
-              onClick={onBack}
-              className="p-2 hover:bg-gray-100 rounded-lg"
-            >
-              ←
+            <motion.button whileTap={{ scale: 0.9 }} onClick={onBack} className="p-2 hover:bg-gray-100 rounded-lg">
+              <ChevronLeft size={24} className="text-gray-600" />
             </motion.button>
           )}
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-400 to-blue-400 flex items-center justify-center text-xl">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-400 to-blue-400 flex items-center justify-center text-xl overflow-hidden">
             {avatarEl}
           </div>
           <div>
             <h3 className="font-semibold text-gray-900">{targetUser.username}</h3>
-            <p className="text-xs text-gray-500">{targetUser.email}</p>
+            {/* MVP Статус - Пока просто хардкод "В сети" */}
+            <p className="text-xs text-green-500 font-medium">В сети</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
+          <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
             <Phone size={20} className="text-gray-600" />
           </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
+          <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
             <Video size={20} className="text-gray-600" />
           </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
+          <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
             <MoreVertical size={20} className="text-gray-600" />
           </motion.button>
         </div>
@@ -153,9 +148,8 @@ export function ChatWindow({ targetUser, currentUser, onBack, isMobile = false, 
           backgroundPosition: 'center'
         }}
       >
-        
-{messages.map((msg: Message) => {
-          const isMine = msg.senderId === currentUser?.id; // Вычисляем, мое ли это сообщение
+        {messages.map((msg: Message) => {
+          const isMine = msg.senderId === currentUser?.id;
           return (
             <motion.div
               key={msg.id}
@@ -189,42 +183,26 @@ export function ChatWindow({ targetUser, currentUser, onBack, isMobile = false, 
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -320, opacity: 0 }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="absolute left-0 bottom-16 w-80 h-96 bg-white rounded-tr-2xl shadow-2xl border border-gray-200 flex flex-col"
+              className="absolute left-0 bottom-16 w-80 h-96 bg-white rounded-tr-2xl shadow-2xl border border-gray-200 flex flex-col z-20"
             >
               <div className="p-4 border-b border-gray-200 flex items-center justify-between">
                 <h3 className="font-semibold text-gray-900">Стикеры</h3>
-                <motion.button
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => setStickersOpen(false)}
-                  className="p-1 hover:bg-gray-100 rounded-lg"
-                >
+                <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => setStickersOpen(false)} className="p-1 hover:bg-gray-100 rounded-lg">
                   <X size={20} />
                 </motion.button>
               </div>
               <div className="flex-1 overflow-y-auto p-4">
                 <div className="grid grid-cols-4 gap-3">
                   {stickers.map((sticker, i) => (
-                    <motion.button
-                      key={i}
-                      whileHover={{ scale: 1.2 }}
-                      whileTap={{ scale: 0.9 }}
-                      className="text-4xl p-3 hover:bg-gray-100 rounded-lg transition-colors"
-                    >
+                    <motion.button key={i} onClick={() => { setMessage(message + sticker); setStickersOpen(false); }} whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.9 }} className="text-4xl p-3 hover:bg-gray-100 rounded-lg transition-colors">
                       {sticker}
                     </motion.button>
                   ))}
                 </div>
               </div>
               <div className="p-3 border-t border-gray-200">
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => setCreateStickerOpen(true)}
-                  className="w-full py-2 bg-cyan-500 text-white rounded-lg font-medium flex items-center justify-center gap-2"
-                >
-                  <Plus size={18} />
-                  Создать свой стикер
+                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setCreateStickerOpen(true)} className="w-full py-2 bg-cyan-500 text-white rounded-lg font-medium flex items-center justify-center gap-2">
+                  <Plus size={18} /> Создать свой стикер
                 </motion.button>
               </div>
             </motion.div>
@@ -241,31 +219,19 @@ export function ChatWindow({ targetUser, currentUser, onBack, isMobile = false, 
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: 320, opacity: 0 }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="absolute right-0 bottom-16 w-80 h-96 bg-white rounded-tl-2xl shadow-2xl border border-gray-200 flex flex-col"
+              className="absolute right-0 bottom-16 w-80 h-96 bg-white rounded-tl-2xl shadow-2xl border border-gray-200 flex flex-col z-20"
             >
               <div className="p-4 border-b border-gray-200 flex items-center justify-between">
                 <h3 className="font-semibold text-gray-900">GIF</h3>
-                <motion.button
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => setGifsOpen(false)}
-                  className="p-1 hover:bg-gray-100 rounded-lg"
-                >
+                <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => setGifsOpen(false)} className="p-1 hover:bg-gray-100 rounded-lg">
                   <X size={20} />
                 </motion.button>
               </div>
               <div className="flex-1 overflow-y-auto p-3">
                 <div className="grid grid-cols-2 gap-2">
                   {gifs.map((gif, i) => (
-                    <motion.button
-                      key={i}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      className="aspect-square bg-gray-200 rounded-lg overflow-hidden"
-                    >
-                      <div className="w-full h-full bg-gradient-to-br from-cyan-200 to-blue-200 flex items-center justify-center text-xs text-gray-600">
-                        GIF {i + 1}
-                      </div>
+                    <motion.button key={i} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="aspect-square bg-gray-200 rounded-lg overflow-hidden">
+                      <div className="w-full h-full bg-gradient-to-br from-cyan-200 to-blue-200 flex items-center justify-center text-xs text-gray-600">GIF {i + 1}</div>
                     </motion.button>
                   ))}
                 </div>
@@ -284,36 +250,20 @@ export function ChatWindow({ targetUser, currentUser, onBack, isMobile = false, 
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 300, opacity: 0 }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="absolute bottom-16 left-0 right-0 h-64 bg-white rounded-t-2xl shadow-2xl border-t border-gray-200 flex flex-col"
+              className="absolute bottom-16 left-0 right-0 h-64 bg-white rounded-t-2xl shadow-2xl border-t border-gray-200 flex flex-col z-20"
             >
               <div className="p-3 border-b border-gray-200 flex items-center justify-between">
                 <div className="flex gap-2">
-                  <button
-                    onClick={() => { setStickersOpen(true); setGifsOpen(false); }}
-                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${stickersOpen ? 'bg-cyan-500 text-white' : 'text-gray-600'}`}
-                  >
-                    Стикеры
-                  </button>
-                  <button
-                    onClick={() => { setGifsOpen(true); setStickersOpen(false); }}
-                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${gifsOpen ? 'bg-cyan-500 text-white' : 'text-gray-600'}`}
-                  >
-                    GIF
-                  </button>
+                  <button onClick={() => { setStickersOpen(true); setGifsOpen(false); }} className={`px-4 py-2 rounded-lg font-medium transition-colors ${stickersOpen ? 'bg-cyan-500 text-white' : 'text-gray-600'}`}>Стикеры</button>
+                  <button onClick={() => { setGifsOpen(true); setStickersOpen(false); }} className={`px-4 py-2 rounded-lg font-medium transition-colors ${gifsOpen ? 'bg-cyan-500 text-white' : 'text-gray-600'}`}>GIF</button>
                 </div>
-                <motion.button
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => { setStickersOpen(false); setGifsOpen(false); }}
-                  className="p-1"
-                >
-                  <X size={20} />
-                </motion.button>
+                <motion.button whileTap={{ scale: 0.9 }} onClick={() => { setStickersOpen(false); setGifsOpen(false); }} className="p-1"><X size={20} /></motion.button>
               </div>
               <div className="flex-1 overflow-y-auto p-3">
                 {stickersOpen && (
                   <div className="grid grid-cols-6 gap-2">
                     {stickers.map((sticker, i) => (
-                      <button key={i} className="text-3xl p-2">{sticker}</button>
+                      <button key={i} onClick={() => { setMessage(message + sticker); setStickersOpen(false); }} className="text-3xl p-2">{sticker}</button>
                     ))}
                   </div>
                 )}
@@ -333,56 +283,19 @@ export function ChatWindow({ targetUser, currentUser, onBack, isMobile = false, 
       {/* Create Sticker Modal */}
       <AnimatePresence>
         {createStickerOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setCreateStickerOpen(false)}
-            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-2xl p-6 w-full max-w-md"
-            >
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setCreateStickerOpen(false)} className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl p-6 w-full max-w-md">
               <h3 className="text-xl font-semibold mb-4">Создать стикер</h3>
-
               {!stickerImage ? (
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={handleStickerUpload}
-                  className="w-full h-64 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center gap-3 hover:border-cyan-500 transition-colors"
-                >
+                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handleStickerUpload} className="w-full h-64 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center gap-3 hover:border-cyan-500 transition-colors">
                   <ImageIcon size={48} className="text-gray-400" />
                   <p className="text-gray-600">Выберите изображение</p>
                 </motion.button>
               ) : (
                 <div className="space-y-4">
-                  <div className="relative">
-                    <img src={stickerImage} alt="Sticker" className="w-full h-64 object-contain bg-gray-100 rounded-lg" />
-                  </div>
-                  <div className="flex gap-2">
-                    <button className="flex-1 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
-                      Обрезать
-                    </button>
-                    <button className="flex-1 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
-                      Фильтры
-                    </button>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setStickerImage(null)}
-                      className="flex-1 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                    >
-                      Отмена
-                    </button>
-                    <button className="flex-1 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600">
-                      Сохранить
-                    </button>
-                  </div>
+                  <div className="relative"><img src={stickerImage} alt="Sticker" className="w-full h-64 object-contain bg-gray-100 rounded-lg" /></div>
+                  <div className="flex gap-2"><button className="flex-1 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Обрезать</button><button className="flex-1 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Фильтры</button></div>
+                  <div className="flex gap-2"><button onClick={() => setStickerImage(null)} className="flex-1 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Отмена</button><button className="flex-1 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600">Сохранить</button></div>
                 </div>
               )}
             </motion.div>
@@ -391,45 +304,26 @@ export function ChatWindow({ targetUser, currentUser, onBack, isMobile = false, 
       </AnimatePresence>
 
       {/* Input Area */}
-      <div className="bg-white border-t border-gray-200 p-3">
+      <div className="bg-white border-t border-gray-200 p-3 shrink-0">
         <div className="flex items-center gap-2">
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={() => { setStickersOpen(!stickersOpen); setGifsOpen(false); }}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
+          <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => { setStickersOpen(!stickersOpen); setGifsOpen(false); }} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
             <Smile size={24} className="text-gray-600" />
           </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={() => { setGifsOpen(!gifsOpen); setStickersOpen(false); }}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
+          <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => { setGifsOpen(!gifsOpen); setStickersOpen(false); }} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
             <ImageIcon size={24} className="text-gray-600" />
           </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
+          <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
             <Paperclip size={24} className="text-gray-600" />
           </motion.button>
           <input
             type="text"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} // Отправка по Enter
+            onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
             placeholder="Написать сообщение..."
             className="flex-1 px-4 py-2 bg-gray-100 rounded-full focus:outline-none focus:ring-2 focus:ring-cyan-500"
           />
-          <motion.button
-            onClick={handleSendMessage} 
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            className="p-2 bg-cyan-500 text-white rounded-full hover:bg-cyan-600 transition-colors"
-          >
+          <motion.button onClick={handleSendMessage} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} className="p-2 bg-cyan-500 text-white rounded-full hover:bg-cyan-600 transition-colors">
             <Send size={20} />
           </motion.button>
         </div>
