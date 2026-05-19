@@ -54,6 +54,8 @@ useEffect(() => {
   reconnectionDelay: 1000,
 });
       
+      setSocket(newSocket); // СОХРАНЯЕМ В СТЕЙТ
+      
       newSocket.emit('user_connected', currentUser.id);
 
       newSocket.on('status_change', (data: { userId: string, status: string }) => {
